@@ -1,0 +1,9 @@
+AI拼豆图纸 — Apple 芯片 Mac
+
+解压后双击“AI拼豆图纸.app”，等待浏览器打开。应用运行时会在 Dock 中显示；使用菜单栏“AI拼豆图纸” → “退出 AI拼豆图纸”（或 Command-Q）关闭应用和本地服务。关闭浏览器标签不会退出应用。再次点击 Dock 图标可打开页面。
+
+此构建未使用 Developer ID 签名，也未经 Apple 公证。首次启动时 macOS 可能阻止打开；确认下载来源可信后，可在“系统设置”→“隐私与安全性”查看提示并选择允许。不要关闭全局安全保护。
+
+上传图片转换无需联网；在线生图需要网络和自己的服务 API Key。运行包已包含 Node.js，使用者无需安装 Node 或 Python。仅支持 Apple 芯片 Mac；请以实际测试为准。
+
+开发者构建：先安装开发依赖并执行 npm run build，然后执行 scripts/pack-macos.sh。默认从 npm registry 下载 node-bin-darwin-arm64 22.16.0，校验固定 SHA-512；也可设置 NODE_ARCHIVE 指向同一压缩包。该包源自 https://www.npmjs.com/package/node-bin-darwin-arm64 ，包含 Node.js 运行时及其许可证，许可证随 app 存放于 Contents/Resources/Node-LICENSE.txt。原项目许可与 NOTICE 随包附带。此脚本不签名、不公证；分发前应在干净的 Apple 芯片 Mac 上验证下载、系统提示、完整功能及退出行为。

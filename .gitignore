@@ -1,0 +1,20 @@
+node_modules/
+dist/
+release/
+playwright-report/
+test-results/
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
+!.env.example
+# IDEs and Editors
+.vscode/
+.idea/
+output-pattern.json
+*-output.json
+
+# macOS metadata and isolated task worktrees
+._*
+.worktrees/
