@@ -2,11 +2,11 @@
 
 把自己的图片转换成带色号和材料数量的拼豆图纸，也可以配置在线生图服务，把文字想法变成候选图片后制作图纸。界面使用中文，图纸转换在本机完成。
 
-**验证状态：** 已在 Apple 芯片 Mac 上使用最终 ZIP 验证解压启动、离线上传图片转换并导出 PNG，以及退出应用。尚未在另一台干净的 Mac 上验证。真实 Seedream 生图因测试凭证没有所需权限尚未通过；其他在线服务也尚未完成真实调用验证。预发行版本即将发布，下载入口以 Releases 实际显示的文件为准。
+**验证状态：** 已在 Apple 芯片 Mac 上使用最终 ZIP 验证解压启动、离线上传图片转换并导出 PNG，以及退出应用。尚未在另一台干净的 Mac 上验证。真实 Seedream 生图因测试凭证没有所需权限尚未通过；其他在线服务也尚未完成真实调用验证。当前提供预发行测试版。
 
 ## 下载和启动
 
-面向 Apple 芯片 Mac 的运行包计划放在 [GitHub Releases](https://github.com/Vincent-chk/ai-bead-pattern/releases)。发布后，下载 `AI拼豆图纸-macOS-arm64.zip` 并解压，双击“AI拼豆图纸.app”，等待浏览器打开。运行包包含所需 Node.js，使用者无需自行安装 Node.js 或 Python。Intel Mac 和 Windows 不在首版支持范围内。
+从 [GitHub Releases](https://github.com/Vincent-chk/ai-bead-pattern/releases) 下载面向 Apple 芯片 Mac 的 `AI-Bead-Pattern-macOS-arm64.zip` 并解压，双击“AI拼豆图纸.app”，等待浏览器打开。运行包包含所需 Node.js，使用者无需自行安装 Node.js 或 Python。Intel Mac 和 Windows 不在首版支持范围内。
 
 构建脚本生成的应用未使用 Developer ID 签名，也未经 Apple 公证。首次打开时 macOS 可能阻止运行；确认下载来源可信后，在“系统设置 → 隐私与安全性”中查看提示并选择允许。应用运行时显示在 Dock；使用菜单栏退出或按 Command-Q 可关闭应用和本地服务，仅关闭浏览器标签不会退出应用。尚未在独立的干净 Mac 上验证首次启动体验。
 
