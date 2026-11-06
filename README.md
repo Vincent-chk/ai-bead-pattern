@@ -12,7 +12,7 @@
 
 **适用设备：** Apple 芯片（M1、M2、M3 等）的 Mac，macOS 12 或更高版本。目前不支持 Intel Mac 和 Windows。
 
-1. [点击下载 Mac 版](https://github.com/Vincent-chk/ai-bead-pattern/releases/download/v0.1.0-beta.3/AI-Bead-Pattern-macOS-arm64.zip)。
+1. [点击下载 Mac 版](https://github.com/Vincent-chk/ai-bead-pattern/releases/download/v0.1.0-beta.4/AI-Bead-Pattern-macOS-arm64.zip)。
 2. 双击下载的 ZIP 文件解压。
 3. 打开解压后的文件夹，双击 **“AI拼豆图纸.app”**，等待浏览器自动打开。
 

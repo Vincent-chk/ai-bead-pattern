@@ -172,3 +172,19 @@ test('切换路径后迟到的 AI 结果不会污染上传流程', async ({ page
   await expect(page.getByText('正在生成，请稍候…')).toBeHidden();
   await expect(page.getByRole('heading', { name: '裁切图片' })).toBeHidden();
 });
+
+test('街机首页支持键盘与减少动态效果', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 360, height: 480 });
+  await page.goto('/');
+  const upload = page.getByRole('button', { name: '我有想拼的图片' });
+  expect(await page.evaluate(() => getComputedStyle(document.body, '::before').animationName)).toBe('none');
+  await upload.focus();
+  await expect(upload).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByLabel('上传图片')).toBeAttached();
+  await expect(page.getByRole('button', { name: '返回选择' })).toBeVisible();
+  expect(await page.evaluate(() => getComputedStyle(document.body, '::before').animationName)).toBe('none');
+  await page.getByRole('button', { name: '返回选择' }).click();
+  await expect(page.getByRole('button', { name: '我有想拼的图片' })).toBeVisible();
+});
