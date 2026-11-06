@@ -86,5 +86,48 @@ test('更换服务地址或提供商时不会沿用旧密钥', async () => {
     assert.equal((await save({ ...settings, baseUrl: 'https://elsewhere.example/v1', apiKey: '' })).hasKey, false);
     assert.equal((await save(settings)).hasKey, true);
     assert.equal((await save({ ...settings, provider: 'seedream', apiKey: '' })).hasKey, false);
+    const seed = { provider: 'seedream', baseUrl: 'https://example.com/api/v3', model: 'model', apiKey: 'test-key' };
+    assert.equal((await save(seed)).hasKey, true);
+    assert.equal((await save({ ...seed, baseUrl: `${seed.baseUrl}/images/generations`, apiKey: '' })).hasKey, false);
+  } finally { child.kill(); await rm(dir, { recursive: true, force: true }); }
+});
+
+test('Seedream 使用单图请求，支持服务根地址和完整生成地址', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'beads-'));
+  const log = join(dir, 'calls');
+  const child = spawn(process.execPath, ['--import', './tests/fixtures/mock-image-provider.js', 'server/server.js'], { env: { ...process.env, BEAD_CONFIG_DIR: dir, BEAD_MOCK_LOG: log, PORT: '0' }, stdio: ['ignore', 'pipe', 'inherit'] });
+  try {
+    const [chunk] = await once(child.stdout, 'data');
+    const url = `http://127.0.0.1:${Number(String(chunk).trim())}`;
+    const headers = { origin: url, 'content-type': 'application/json' };
+    const reference = 'data:image/png;base64,iVBORw0KGgo=';
+    const cases = [
+      { model: 'doubao-seedream-5.0-flash', baseUrl: 'https://example.com/api/plan/v3/images/generations', referenceImage: reference, path: '/api/plan/v3/images/generations' },
+      { model: 'doubao-seedream-5.0-pro', baseUrl: 'https://example.com/api/plan/v3/images/generations/', path: '/api/plan/v3/images/generations' },
+      { model: 'doubao-seedream-5.0-flash', baseUrl: 'https://example.com/api/plan/v3', referenceImage: reference, path: '/api/plan/v3/images/generations' },
+      { model: 'doubao-seedream-5-0-pro-260101', baseUrl: 'https://example.com/api/v3/', path: '/api/v3/images/generations' },
+      { model: 'doubao-seedream-5-0-lite-260128', baseUrl: 'https://example.com/api/v3', path: '/api/v3/images/generations' }
+    ];
+    for (const item of cases) {
+      const saved = await fetch(`${url}/api/settings`, { method: 'POST', headers, body: JSON.stringify({ provider: 'seedream', baseUrl: item.baseUrl, model: item.model, apiKey: 'test-key' }) });
+      assert.equal(saved.status, 200);
+      const response = await fetch(`${url}/api/generate`, { method: 'POST', headers, body: JSON.stringify({ prompt: '猫', referenceImage: item.referenceImage }) });
+      const result = await response.json();
+      assert.equal(result.images.length + result.errors.length, 3);
+      assert.ok(result.images.length >= 2);
+    }
+    const { readFile } = await import('node:fs/promises');
+    const calls = (await readFile(log, 'utf8')).trim().split('\n').map(JSON.parse);
+    assert.equal(calls.length, cases.length * 3);
+    for (const [index, item] of cases.entries()) {
+      for (const call of calls.slice(index * 3, index * 3 + 3)) {
+        assert.equal(call.path, item.path);
+        assert.equal(call.body.model, item.model);
+        assert.equal(call.body.response_format, 'b64_json');
+        assert.equal(call.body.image, item.referenceImage);
+        assert.equal('n' in call.body, false);
+        assert.equal('sequential_image_generation' in call.body, false);
+      }
+    }
   } finally { child.kill(); await rm(dir, { recursive: true, force: true }); }
 });

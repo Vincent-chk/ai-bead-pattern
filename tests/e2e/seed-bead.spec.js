@@ -91,6 +91,42 @@ test('选图前可选择尺寸和色卡，生图和参考图使用所选格数',
   await page.getByRole('button', { name: '选择候选图 1' }).click();
   await page.getByRole('button', { name: '使用此图' }).click();
   await expect(page.getByLabel('裁切后尺寸')).toHaveValue('52');
+  const zoom = page.getByLabel('缩放图片');
+  await expect(zoom).toBeVisible();
+  await expect(zoom).toHaveValue('1');
+  await zoom.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(zoom).toHaveValue('1.1');
+  await expect(zoom).toHaveAttribute('aria-valuetext', '1.1 倍');
   await page.getByLabel('裁切后尺寸').selectOption('104');
   await expect(page.getByLabel('图纸尺寸')).toHaveValue('104');
+});
+
+test('缩放图片让留白中的主体占据更多图纸区域', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('上传图片').setInputFiles({ name: 'subject.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="white"/><rect x="80" y="80" width="40" height="40" fill="red"/></svg>') });
+  const zoom = page.getByLabel('缩放图片');
+  await expect(zoom).toBeVisible();
+  await expect(zoom).toHaveValue('1');
+  const preview = page.getByLabel('裁切预览');
+  const pixel = () => preview.evaluate(canvas => Array.from(canvas.getContext('2d').getImageData(20, 100, 1, 1).data));
+  const before = await pixel();
+  const resultPreview = page.getByLabel('裁切结果预览');
+  const resultPixel = (x, y) => resultPreview.evaluate((canvas, [x, y]) => Array.from(canvas.getContext('2d').getImageData(x * canvas.width, y * canvas.height, 1, 1).data), [x, y]);
+  expect((await resultPixel(0.2, 0.5))[1]).toBeGreaterThan(200);
+  await page.getByRole('button', { name: '生成图纸' }).click();
+  const redCount = async () => page.locator('.legend-item').evaluateAll(items => {
+    const red = items.find(item => { const [r, g, b] = getComputedStyle(item.querySelector('.swatch')).backgroundColor.match(/\d+/g).map(Number); return r > g * 1.5 && r > b * 1.5; });
+    return Number(red.textContent.match(/(\d+) 颗/)[1]);
+  });
+  const initial = await redCount();
+  await zoom.fill('4');
+  expect((await pixel())[0]).toBeLessThan(before[0]);
+  expect((await resultPixel(0.2, 0.5))[1]).toBeLessThan(30);
+  await page.getByRole('button', { name: '生成图纸' }).click();
+  await expect.poll(redCount).toBeGreaterThan(initial * 8);
+  await page.getByLabel('左右移动').fill('1000');
+  expect((await resultPixel(0.5, 0.5))[1]).toBeGreaterThan(200);
+  await page.getByRole('button', { name: '生成图纸' }).click();
+  await expect(page.locator('.legend-item')).toHaveCount(1);
 });

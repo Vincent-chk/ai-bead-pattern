@@ -69,9 +69,11 @@ async function generateOne(settings, prompt, reference) {
   const seed = settings.provider === 'seedream';
   const endpoint = seed || !reference ? '/images/generations' : '/images/edits';
   const data = { model: settings.model, prompt: `适合拼豆的图案，主体清晰、颜色简洁。${prompt}` };
-  if (seed) { data.sequential_image_generation = 'disabled'; data.response_format = 'b64_json'; if (reference) data.image = reference; }
+  if (seed) { data.response_format = 'b64_json'; if (reference) data.image = reference; }
   else { data.n = 1; if (reference) data.images = [{ image_url: reference }]; }
-  const result = await remote(`${settings.baseUrl.replace(/\/$/, '')}${endpoint}`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${settings.apiKey}` }, body: JSON.stringify(data) });
+  const baseUrl = settings.baseUrl.replace(/\/$/, '');
+  const requestUrl = seed && baseUrl.endsWith('/images/generations') ? baseUrl : `${baseUrl}${endpoint}`;
+  const result = await remote(requestUrl, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${settings.apiKey}` }, body: JSON.stringify(data) });
   if (result.status !== 200) throw Error(result.status === 401 || result.status === 403 ? '密钥或权限无效' : result.status === 429 ? '请求过于频繁或额度不足' : result.status === 404 ? '接口或模型不存在，或密钥无权使用，请检查服务地址、模型名称和权限' : reference ? '生成失败，模型可能不支持参考图' : '生图服务请求失败');
   let item; try { item = JSON.parse(result.body).data?.[0]; } catch { throw Error('生图服务返回无效数据'); }
   if (!item || item.error) throw Error(reference ? '生成失败，模型可能不支持参考图' : '生图服务未返回图片');

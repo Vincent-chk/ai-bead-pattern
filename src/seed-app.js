@@ -72,7 +72,7 @@ function loadImage(url) {
     $('generationStatus').textContent = '';
     source = image; const side = Math.min(image.naturalWidth, image.naturalHeight);
     crop = { x:(image.naturalWidth-side)/2, y:(image.naturalHeight-side)/2, width:side, height:side };
-    $('cropX').value = $('cropY').value = 500; $('cropSize').value = 100;
+    $('cropX').value = $('cropY').value = 500; $('cropSize').value = 1; $('cropSize').setAttribute('aria-valuetext', '1 倍'); $('cropZoomValue').textContent = '1×';
     $('cropSection').hidden = false; $('resultSection').hidden = true; $('cropStatus').textContent = ''; drawCrop(); $('cropSection').scrollIntoView({behavior:'smooth'});
   };
   image.onerror = () => { $('generationStatus').textContent = '图片无法打开，请换一张重试。'; };
@@ -90,13 +90,18 @@ function drawCrop() {
   ctx.drawImage(source,0,0,canvas.width,canvas.height); ctx.fillStyle = 'rgba(22,18,37,.5)'; ctx.fillRect(0,0,canvas.width,canvas.height);
   ctx.drawImage(source,crop.x,crop.y,crop.width,crop.height,crop.x*sx,crop.y*sy,crop.width*sx,crop.height*sy);
   ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(crop.x*sx,crop.y*sy,crop.width*sx,crop.height*sy);
+  const preview = $('cropResultPreview'), previewContext = preview.getContext('2d');
+  previewContext.clearRect(0,0,preview.width,preview.height);
+  previewContext.drawImage(source,crop.x,crop.y,crop.width,crop.height,0,0,preview.width,preview.height);
 }
 for (const id of ['cropX','cropY']) $(id).addEventListener('input', () => {
   crop.x = (source.naturalWidth-crop.width) * $('cropX').value/1000; crop.y = (source.naturalHeight-crop.height) * $('cropY').value/1000; drawCrop();
 });
 $('cropSize').addEventListener('input', () => {
   const centerX = crop.x + crop.width/2, centerY = crop.y + crop.height/2;
-  crop.width = crop.height = Math.min(source.naturalWidth,source.naturalHeight) * $('cropSize').value/100;
+  const zoom = Number($('cropSize').value);
+  $('cropZoomValue').textContent = `${zoom}×`; $('cropSize').setAttribute('aria-valuetext', `${zoom} 倍`);
+  crop.width = crop.height = Math.min(source.naturalWidth,source.naturalHeight) / zoom;
   crop.x = clamp(centerX-crop.width/2,0,source.naturalWidth-crop.width); crop.y = clamp(centerY-crop.height/2,0,source.naturalHeight-crop.height); syncSliders(); drawCrop();
 });
 $('cropCanvas').addEventListener('pointerdown', event => { drag = {x:event.clientX,y:event.clientY,cropX:crop.x,cropY:crop.y}; event.currentTarget.setPointerCapture(event.pointerId); });
