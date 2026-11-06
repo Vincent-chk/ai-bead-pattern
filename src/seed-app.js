@@ -3,7 +3,7 @@ import './seed.css';
 import { generateBeadPatternExact } from '../packages/core/src/index.js';
 
 const $ = (id) => document.getElementById(id);
-let source = null, selected = null, pattern = null, crop = null, drag = null;
+let source = null, selected = null, pattern = null, crop = null, drag = null, flowVersion = 0;
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 async function request(url, options) {
   const response = await fetch(url, options);
@@ -33,6 +33,7 @@ $('clearSettings').addEventListener('click', async () => {
   catch (error) { $('settingsStatus').textContent = error.message; }
 });
 async function generate(referenceImage) {
+  const version = flowVersion;
   const prompt = $('prompt').value.trim();
   const extra = $('refPrompt').value.trim();
   const size = $('size').value;
@@ -41,6 +42,7 @@ async function generate(referenceImage) {
   $('generationStatus').textContent = '正在生成，请稍候…';
   try {
     const data = await request('/api/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ prompt: `${prompt}${referenceImage ? `\n补充修改要求：${extra}` : ''}\n目标图纸为 ${size} × ${size} 格，请让主体与细节适合这一格数。`, ...(referenceImage ? {referenceImage} : {}) }) });
+    if (version !== flowVersion) return;
     $('candidates').replaceChildren(); selected = null; $('referenceControls').hidden = true;
     (data.images || []).forEach((url, i) => {
       const button = document.createElement('button'); button.className = 'candidate'; button.setAttribute('aria-label', `选择候选图 ${i + 1}`);
@@ -49,8 +51,8 @@ async function generate(referenceImage) {
       $('candidates').append(button);
     });
     $('generationStatus').textContent = (data.errors || []).join('；') || ((data.images || []).length ? '' : '未生成图片，请重试。');
-  } catch (error) { $('generationStatus').textContent = error.message; }
-  finally { $('generate').disabled = $('refGenerate').disabled = false; }
+  } catch (error) { if (version === flowVersion) $('generationStatus').textContent = error.message; }
+  finally { if (version === flowVersion) $('generate').disabled = $('refGenerate').disabled = false; }
 }
 $('size').addEventListener('change', () => { $('cropSizeChoice').value = $('size').value; });
 $('cropSizeChoice').addEventListener('change', () => { $('size').value = $('cropSizeChoice').value; });
@@ -58,13 +60,15 @@ $('generate').addEventListener('click', () => generate());
 $('refGenerate').addEventListener('click', () => generate(selected));
 $('useCandidate').addEventListener('click', () => loadImage(selected));
 $('upload').addEventListener('change', async (event) => {
-  const file = event.target.files[0]; if (!file) return;
+  const file = event.target.files[0]; event.target.value = ''; if (!file) return; const version = flowVersion;
   if (!file.type.startsWith('image/')) { $('generationStatus').textContent = '请选择图片文件。'; return; }
-  const reader = new FileReader(); reader.onload = () => loadImage(reader.result); reader.onerror = () => { $('generationStatus').textContent = '无法读取图片，请换一张重试。'; }; reader.readAsDataURL(file);
+  const reader = new FileReader(); reader.onload = () => { if (version === flowVersion) loadImage(reader.result); }; reader.onerror = () => { if (version === flowVersion) $('generationStatus').textContent = '无法读取图片，请换一张重试。'; }; reader.readAsDataURL(file);
 });
 function loadImage(url) {
+  const version = flowVersion;
   const image = new Image();
   image.onload = () => {
+    if (version !== flowVersion) return;
     if (!image.naturalWidth || !image.naturalHeight) { $('generationStatus').textContent = '无法读取图片尺寸。'; return; }
     if (image.naturalWidth * image.naturalHeight > 16000000 || Math.max(image.naturalWidth, image.naturalHeight) > 8192) {
       $('generationStatus').textContent = '图片过大，请缩小至 1600 万像素以内、边长不超过 8192 像素后重试。'; return;
@@ -75,7 +79,7 @@ function loadImage(url) {
     $('cropX').value = $('cropY').value = 500; $('cropSize').value = 1; $('cropSize').setAttribute('aria-valuetext', '1 倍'); $('cropZoomValue').textContent = '1×';
     $('cropSection').hidden = false; $('resultSection').hidden = true; $('cropStatus').textContent = ''; drawCrop(); $('cropSection').scrollIntoView({behavior:'smooth'});
   };
-  image.onerror = () => { $('generationStatus').textContent = '图片无法打开，请换一张重试。'; };
+  image.onerror = () => { if (version !== flowVersion) return; $('generationStatus').textContent = '图片无法打开，请换一张重试。'; };
   image.src = url;
 }
 function syncSliders() {
@@ -113,13 +117,15 @@ $('cropCanvas').addEventListener('pointermove', event => {
 $('cropCanvas').addEventListener('pointerup', () => { drag = null; });
 $('cropCanvas').addEventListener('pointercancel', () => { drag = null; });
 $('makePattern').addEventListener('click', async () => {
+  const version = flowVersion;
   $('makePattern').disabled = true; $('cropStatus').textContent = '正在生成图纸…';
   try {
     const canvas = document.createElement('canvas'); canvas.width = source.naturalWidth; canvas.height = source.naturalHeight;
     const context = canvas.getContext('2d', {willReadFrequently:true}); context.drawImage(source,0,0);
-    const size = Number($('size').value); pattern = await generateBeadPatternExact(context.getImageData(0,0,canvas.width,canvas.height), {cols:size, rows:size, crop:{...crop}});
+    const size = Number($('size').value); const result = await generateBeadPatternExact(context.getImageData(0,0,canvas.width,canvas.height), {cols:size, rows:size, crop:{...crop}});
+    if (version !== flowVersion) return; pattern = result;
     renderResult(); $('resultSection').hidden = false; $('cropStatus').textContent = ''; $('resultSection').scrollIntoView({behavior:'smooth'});
-  } catch (error) { $('cropStatus').textContent = `无法生成图纸：${error.message}`; }
+  } catch (error) { if (version === flowVersion) $('cropStatus').textContent = `无法生成图纸：${error.message}`; }
   finally { $('makePattern').disabled = false; }
 });
 function drawChart(ctx, x, y, cell) {
@@ -145,4 +151,18 @@ $('download').addEventListener('click', () => {
   pattern.statistics.colors.forEach((color,i) => { const x=pad+(i%columns)*150, y=board+105+Math.floor(i/columns)*38; ctx.fillStyle=color.hex; ctx.fillRect(x,y,24,24); ctx.strokeStyle='#777'; ctx.strokeRect(x,y,24,24); ctx.fillStyle='#222'; ctx.font='14px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(`${color.code} · ${color.count} 颗`,x+30,y+12); });
   canvas.toBlob(blob => { if (!blob) return; const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='拼豆图纸.png'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),5000); },'image/png');
 });
-loadSettings();
+function chooseFlow(next) {
+  flowVersion++;
+  $('entrySection').hidden = Boolean(next); $('sourceSection').hidden = !next;
+  $('aiFlow').hidden = next !== 'ai'; $('modelSettings').hidden = next !== 'ai'; $('uploadFlow').hidden = next !== 'upload';
+  $('cropSection').hidden = $('resultSection').hidden = true;
+  $('generationStatus').textContent = ''; $('cropStatus').textContent = '';
+  $('candidates').replaceChildren(); $('referenceControls').hidden = true;
+  $('generate').disabled = $('refGenerate').disabled = false;
+  selected = source = pattern = crop = drag = null;
+  if (next === 'ai') loadSettings();
+  window.scrollTo({top:0});
+}
+$('chooseUpload').addEventListener('click', () => chooseFlow('upload'));
+$('chooseAI').addEventListener('click', () => chooseFlow('ai'));
+$('backToEntry').addEventListener('click', () => chooseFlow(null));

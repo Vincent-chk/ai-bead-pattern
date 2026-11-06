@@ -24,6 +24,7 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources/app"
 cp "$tmp/package/bin/node" "$app/Contents/Resources/node"
 cp "$tmp/package/LICENSE" "$app/Contents/Resources/Node-LICENSE.txt"
+cp "$root/macos/AppIcon.icns" "$app/Contents/Resources/AppIcon.icns"
 ditto "$source_dir/server" "$app/Contents/Resources/app/server"
 ditto "$source_dir/dist" "$app/Contents/Resources/app/dist"
 cp "$source_dir/package.json" "$app/Contents/Resources/app/package.json"
@@ -39,6 +40,7 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 <key>CFBundleDisplayName</key><string>AI拼豆图纸</string>
 <key>CFBundleIdentifier</key><string>local.aibeaddrawing.app</string>
 <key>CFBundleExecutable</key><string>BeadLauncher</string>
+<key>CFBundleIconFile</key><string>AppIcon</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleVersion</key><string>1</string>
 <key>CFBundleShortVersionString</key><string>1.0</string>

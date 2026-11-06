@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('上传图片后可裁切、生成图纸并下载', async ({ page }) => {
   await page.goto('/');
+  await page.getByRole('button', { name: '我有想拼的图片' }).click();
   await page.getByLabel('上传图片').setInputFiles({ name: 'white.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="60"><rect width="120" height="60" fill="white"/></svg>') });
   await expect(page.getByRole('heading', { name: '裁切图片' })).toBeVisible();
   await page.getByLabel('图纸尺寸').selectOption('29');
@@ -19,6 +20,7 @@ test('部分生图成功可选参考图并补充要求', async ({ page }) => {
   await page.route('**/api/settings', route => route.fulfill({ json: { provider: 'seedream', baseUrl: '', model: '', hasKey: true } }));
   await page.route('**/api/generate', async route => { body = route.request().postDataJSON(); await route.fulfill({ json: { images: [image], errors: ['一张生成失败'] } }); });
   await page.goto('/');
+  await page.getByRole('button', { name: '用AI帮我生图' }).click();
   await page.getByLabel('描述你的想法').fill('一只猫');
   await page.getByRole('button', { name: '生成候选图' }).click();
   await expect(page.getByText('一张生成失败')).toBeVisible();
@@ -31,6 +33,7 @@ test('部分生图成功可选参考图并补充要求', async ({ page }) => {
 
 test('横图可用滑块裁掉框外画面，并生成另外两档尺寸', async ({ page }) => {
   await page.goto('/');
+  await page.getByRole('button', { name: '我有想拼的图片' }).click();
   await page.getByLabel('上传图片').setInputFiles({ name: 'two-colors.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="60"><rect width="60" height="60" fill="red"/><rect x="60" width="60" height="60" fill="blue"/></svg>') });
   await page.getByLabel('左右移动').fill('1000');
   for (const [size, total] of [['52', '2704'], ['104', '10816']]) {
@@ -45,6 +48,7 @@ test('横图可用滑块裁掉框外画面，并生成另外两档尺寸', async
 test('生图失败时显示服务给出的原因', async ({ page }) => {
   await page.route('**/api/generate', route => route.fulfill({ status: 400, json: { images: [], errors: ['请填写提示词并配置密钥'] } }));
   await page.goto('/');
+  await page.getByRole('button', { name: '用AI帮我生图' }).click();
   await page.getByLabel('描述你的想法').fill('一只猫');
   await page.getByRole('button', { name: '生成候选图' }).click();
   await expect(page.getByText('请填写提示词并配置密钥')).toBeVisible();
@@ -57,13 +61,14 @@ test('更换服务后没有保留密钥时明确提示', async ({ page }) => {
     return route.fulfill({ json: { provider: 'openai', baseUrl: 'https://example.com', model: 'test', hasKey } });
   });
   await page.goto('/');
-  await page.getByText('模型设置').click();
+  await page.getByRole('button', { name: '用AI帮我生图' }).click();
   await page.getByRole('button', { name: '保存设置' }).click();
   await expect(page.getByText('设置已保存，尚未保存 API Key')).toBeVisible();
 });
 
 test('超大图片提示缩小后重试', async ({ page }) => {
   await page.goto('/');
+  await page.getByRole('button', { name: '我有想拼的图片' }).click();
   await page.getByLabel('上传图片').setInputFiles({ name: 'large.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="5000" height="4000"><rect width="5000" height="4000" fill="white"/></svg>') });
   await expect(page.getByText('图片过大，请缩小至 1600 万像素以内、边长不超过 8192 像素后重试。')).toBeVisible();
   await expect(page.getByRole('heading', { name: '裁切图片' })).toBeHidden();
@@ -74,6 +79,7 @@ test('选图前可选择尺寸和色卡，生图和参考图使用所选格数',
   const calls = [];
   await page.route('**/api/generate', route => { calls.push(route.request().postDataJSON()); return route.fulfill({ json: { images: [image], errors: [] } }); });
   await page.goto('/');
+  await page.getByRole('button', { name: '用AI帮我生图' }).click();
   await expect(page.getByLabel('图纸尺寸')).toBeVisible();
   await expect(page.getByLabel('色卡')).toHaveValue('MARD 兼容色卡');
   await page.getByLabel('图纸尺寸').selectOption('52');
@@ -104,6 +110,7 @@ test('选图前可选择尺寸和色卡，生图和参考图使用所选格数',
 
 test('缩放图片让留白中的主体占据更多图纸区域', async ({ page }) => {
   await page.goto('/');
+  await page.getByRole('button', { name: '我有想拼的图片' }).click();
   await page.getByLabel('上传图片').setInputFiles({ name: 'subject.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="white"/><rect x="80" y="80" width="40" height="40" fill="red"/></svg>') });
   const zoom = page.getByLabel('缩放图片');
   await expect(zoom).toBeVisible();
@@ -129,4 +136,39 @@ test('缩放图片让留白中的主体占据更多图纸区域', async ({ page 
   expect((await resultPixel(0.5, 0.5))[1]).toBeGreaterThan(200);
   await page.getByRole('button', { name: '生成图纸' }).click();
   await expect(page.locator('.legend-item')).toHaveCount(1);
+});
+
+
+test('两种入口独立，本地路径无需模型设置', async ({ page }) => {
+  const calls = [];
+  page.on('request', request => { if (request.url().includes('/api/')) calls.push(request.url()); });
+  await page.goto('/');
+  await expect(page.getByText('需要自备生图模型的apikey')).toBeVisible();
+  await expect(page.getByText('模型设置')).toBeHidden();
+  await page.getByRole('button', { name: '我有想拼的图片' }).click();
+  await expect(page.getByLabel('上传图片')).toBeAttached();
+  await expect(page.getByText('模型设置')).toBeHidden();
+  expect(calls).toEqual([]);
+  await page.getByRole('button', { name: '返回选择' }).click();
+  await page.getByRole('button', { name: '用AI帮我生图' }).click();
+  await expect(page.getByText('模型设置')).toBeVisible();
+  await expect(page.getByLabel('描述你的想法')).toBeVisible();
+  await expect(page.getByLabel('上传图片')).toBeHidden();
+});
+
+test('切换路径后迟到的 AI 结果不会污染上传流程', async ({ page }) => {
+  let resolveResponse;
+  const pending = new Promise(resolve => { resolveResponse = resolve; });
+  await page.route('**/api/generate', async route => { await pending; await route.fulfill({ json: { images: ['data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221%22%20height%3D%221%22%2F%3E'], errors: [] } }); });
+  await page.goto('/');
+  await page.getByRole('button', { name: '用AI帮我生图' }).click();
+  await page.getByLabel('描述你的想法').fill('猫');
+  await page.getByRole('button', { name: '生成候选图' }).click();
+  await expect(page.getByText('正在生成，请稍候…')).toBeVisible();
+  await page.getByRole('button', { name: '返回选择' }).click();
+  await page.getByRole('button', { name: '我有想拼的图片' }).click();
+  resolveResponse();
+  await expect(page.getByRole('button', { name: '选择候选图 1' })).toHaveCount(0);
+  await expect(page.getByText('正在生成，请稍候…')).toBeHidden();
+  await expect(page.getByRole('heading', { name: '裁切图片' })).toBeHidden();
 });
